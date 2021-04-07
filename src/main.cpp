@@ -149,8 +149,22 @@ int main(int argc, char **argv)
 
         // sleep 50 ms
         usleep(50000);
-    }
 
+        int check = 0;
+        for(int i = 0; i < processes.size(); i++) {
+            if(processes.at(i)->getState() == Process::State::Terminated) {
+                check++;
+            }
+        }
+
+        if(check == processes.size()) {
+
+            shared_data->mutex.lock();
+            shared_data->all_terminated = true;
+            shared_data->mutex.unlock();
+        }
+    }
+    
 
     // wait for threads to finish
     for (i = 0; i < num_cores; i++)
@@ -180,39 +194,48 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
     // Repeat until all processes in terminated state:
     while (!(shared_data->all_terminated)) {
         //   - *Get process at front of ready queue
+        Process *thisProcess;
+
         shared_data->mutex.lock();
-        Process *thisProcess = shared_data->ready_queue.front();
-        shared_data->ready_queue.pop_front();
+        if(!shared_data->ready_queue.empty()) {
+            thisProcess = shared_data->ready_queue.front();
+            shared_data->ready_queue.pop_front();
+        } else {
+            break;
+        }
         uint32_t context = shared_data->context_switch;
         shared_data->mutex.unlock();
-
+        
         //if the process hasn't started, do initial stuff
+        
         if(thisProcess->getCpuTime() == 0) {
             thisProcess->setBurstStartTime(currentTime());
         
         }
+        
         thisProcess->setState(Process::State::Running, currentTime());
     
         //   - Simulate the processes running until one of the following:
         //     - CPU burst time has elapsed
         //     - Interrupted (RR time slice has elapsed or process preempted by higher priority process)
-    
-        while(currentTime() - thisProcess->getBurstStartTime() < thisProcess->getBurstTime(thisProcess->getBurstIdx())) {
+        
+        while(currentTime() - thisProcess->getBurstStartTime() < (uint64_t)thisProcess->getBurstTime(thisProcess->getBurstIdx())) {
             //time is elapsing
 
             if(thisProcess->isInterrupted()) {
                 break;
             }
         }
-
+        //std::cout << "test";
         //  - Place the process back in the appropriate queue
         //     - I/O queue if CPU burst finished (and process not finished) -- no actual queue, simply set state to IO
         //     - Terminated if CPU burst finished and no more bursts remain -- no actual queue, simply set state to Terminated
         //     - *Ready queue if interrupted (be sure to modify the CPU burst time to now reflect the remaining time)
-
         if(thisProcess->isInterrupted()) {
             thisProcess->setState(Process::State::Ready, currentTime());
             thisProcess->updateBurstTime(thisProcess->getBurstIdx(), thisProcess->getBurstTime(thisProcess->getBurstIdx()) - (currentTime() - thisProcess->getBurstStartTime()));
+        } else if(currentTime() - thisProcess->getBurstStartTime() >= thisProcess->getBurstTime(thisProcess->getBurstIdx()) && thisProcess->getBurstIdx() == thisProcess->getNumBursts() - 1) {
+            thisProcess->setState(Process::State::Terminated, currentTime());
         } else if(currentTime() - thisProcess->getBurstStartTime() >= thisProcess->getBurstTime(thisProcess->getBurstIdx())) {
             //if cpu burst finished
             thisProcess->setState(Process::State::IO, currentTime());
@@ -222,14 +245,20 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
             thisProcess->updateBurstIdx();
             
             //Here will be the code for where to put it in the ready queue 
+            bool done = false;
+            
+            while(done == false) {
+                
+                shared_data->mutex.lock();
+                shared_data->ready_queue.push_back(thisProcess);
+                done = true;
+                shared_data->mutex.unlock();
+            }
 
-
-        } else if(currentTime() - thisProcess->getBurstStartTime() >= thisProcess->getBurstTime(thisProcess->getBurstIdx()) && thisProcess->getBurstIdx() == thisProcess->getNumBursts() - 1) {
-            thisProcess->setState(Process::State::Terminated, currentTime());
-        }
+        } 
  
         //  - Wait context switching time
-
+        
         usleep(context);
         //  - * = accesses shared data (ready queue), so be sure to use proper synchronization
     }
