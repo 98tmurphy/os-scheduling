@@ -190,7 +190,7 @@ int main(int argc, char **argv)
     //     - Overall average
     //  - Average turnaround time
     //  - Average waiting time
-
+    num_lines = printProcessOutput(processes, shared_data->mutex);
 
     // Clean up before quitting program
     processes.clear();
