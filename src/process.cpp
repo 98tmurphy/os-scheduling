@@ -29,6 +29,7 @@ Process::Process(ProcessDetails details, uint64_t current_time)
     {
         remain_time += burst_times[i];
     }
+    burstIdx = 0;
 }
 
 Process::~Process()
@@ -131,6 +132,27 @@ void Process::updateBurstTime(int burst_idx, uint32_t new_time)
     burst_times[burst_idx] = new_time;
 }
 
+uint32_t Process::getBurstTime(int burst_idx)  
+{
+    return burst_times[burst_idx];
+}
+
+int Process::getBurstIdx() 
+{
+    return burstIdx;
+}
+
+int Process::getNumBursts()
+{
+    return num_bursts;
+}
+
+void Process::updateBurstIdx() {
+    burstIdx++;
+}
+
+
+
 
 // Comparator methods: used in std::list sort() method
 // No comparator needed for FCFS or RR (ready queue never sorted)
@@ -139,6 +161,9 @@ void Process::updateBurstTime(int burst_idx, uint32_t new_time)
 bool SjfComparator::operator ()(const Process *p1, const Process *p2)
 {
     // your code here!
+    if(p1->getRemainingTime() < p2->getRemainingTime()) {
+        return true;
+    }
     return false; // change this!
 }
 
