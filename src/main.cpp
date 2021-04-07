@@ -67,7 +67,7 @@ int main(int argc, char **argv)
         }
     }
 
-    std::cout << "num proc " << shared_data->ready_queue.size() << "\n";
+    //std::cout << "num proc " << shared_data->ready_queue.size() << "\n";
     // Free configuration data from memory
     deleteConfig(config);
 
@@ -163,19 +163,24 @@ int main(int argc, char **argv)
         }
 
         if(check == processes.size()) {
-
+            
             shared_data->mutex.lock();
             shared_data->all_terminated = true;
             shared_data->mutex.unlock();
+            //return 0;
         }
     }
-    std::cout << "TEST";
+    
+    //std::cout << "TEST";
 
     // wait for threads to finish
     for (i = 0; i < num_cores; i++)
     {
+        
         schedule_threads[i].join();
+        //return 0;
     }
+    
 
     // print final statistics
     //  - CPU utilization
@@ -203,9 +208,11 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
 
         shared_data->mutex.lock();
         if(!shared_data->ready_queue.empty()) {
+            //std::cout << "AAAAA";
             thisProcess = shared_data->ready_queue.front();
             shared_data->ready_queue.pop_front();
         } else {
+            shared_data->mutex.unlock();
             break;
         }
         uint32_t context = shared_data->context_switch;
@@ -265,6 +272,7 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
         usleep(context);
         //  - * = accesses shared data (ready queue), so be sure to use proper synchronization
     }
+    //std::cout << core_id << "\n\n\n test" << core_id;
     
 }
 
