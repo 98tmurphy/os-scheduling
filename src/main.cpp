@@ -7,6 +7,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <unistd.h>
+#include <ctime>
 #include "configreader.h"
 #include "process.h"
 
@@ -29,6 +30,7 @@ std::string processStateToString(Process::State state);
 
 int main(int argc, char **argv)
 {
+    std::cout << "Hello world";
     // Ensure user entered a command line parameter for configuration file name
     if (argc < 2)
     {
@@ -90,6 +92,11 @@ int main(int argc, char **argv)
         //   - *Sort the ready queue (if needed - based on scheduling algorithm)
         //   - Determine if all processes are in the terminated state
         //   - * = accesses shared data (ready queue), so be sure to use proper synchronization
+        std::chrono::system_clock::time_point time = std::chrono::system_clock::now();
+        time_t tt;
+        tt = std::chrono::system_clock::to_time_t(time);
+        
+
 
         // output process status table
         num_lines = printProcessOutput(processes, shared_data->mutex);
