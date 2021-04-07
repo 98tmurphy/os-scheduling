@@ -67,6 +67,7 @@ int main(int argc, char **argv)
         }
     }
 
+    std::cout << "num proc " << shared_data->ready_queue.size() << "\n";
     // Free configuration data from memory
     deleteConfig(config);
 
@@ -112,7 +113,8 @@ int main(int argc, char **argv)
 
         // Clear output from previous iteration
         clearOutput(num_lines);
-
+        //std::cout << "num proc " << shared_data->ready_queue.size() << "\n";
+        //std::cout << "num proc " << processes.size() << "\n";
         // Do the following:
 
         //   - Get current time
@@ -120,8 +122,11 @@ int main(int argc, char **argv)
 
         //   - *Check if any processes need to move from NotStarted to Ready (based on elapsed time), and if so put that process in the ready queue
         for(int i = 0; i < processes.size(); i++) {
-            if(processes.at(i)->NotStarted == true && processes.at(i)->getStartTime() <= current_time - start) {
+            //std::cout << current_time - start << "\n";
+            //std::cout << processes.at(i)->getStartTime() << "\n";
+            if(processes.at(i)->getState() == Process::State::NotStarted && processes.at(i)->getStartTime() <= current_time - start) {
                 //then add process to scheduling queue based on algorithm
+                //std::cout << "TRUE\n";
                 shared_data->ready_queue.push_back(processes.at(i));
                 shared_data->ready_queue.back()->setState(Process::State::Ready, currentTime());
                 if(shared_data->algorithm == SJF) {
@@ -164,7 +169,7 @@ int main(int argc, char **argv)
             shared_data->mutex.unlock();
         }
     }
-    
+    std::cout << "TEST";
 
     // wait for threads to finish
     for (i = 0; i < num_cores; i++)
@@ -238,6 +243,7 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
             thisProcess->setState(Process::State::Terminated, currentTime());
         } else if(currentTime() - thisProcess->getBurstStartTime() >= thisProcess->getBurstTime(thisProcess->getBurstIdx())) {
             //if cpu burst finished
+            //std::cout << "TEST";
             thisProcess->setState(Process::State::IO, currentTime());
             thisProcess->updateBurstIdx();
             usleep(thisProcess->getBurstTime(thisProcess->getBurstIdx()));
@@ -245,17 +251,14 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
             thisProcess->updateBurstIdx();
             
             //Here will be the code for where to put it in the ready queue 
-            bool done = false;
             
-            while(done == false) {
-                
-                shared_data->mutex.lock();
-                shared_data->ready_queue.push_back(thisProcess);
-                done = true;
-                shared_data->mutex.unlock();
-            }
-
+            shared_data->mutex.lock();
+            shared_data->ready_queue.push_back(thisProcess);
+            shared_data->mutex.unlock();
+            
+            //std::cout << thisProcess->getBurstIdx();
         } 
+        
  
         //  - Wait context switching time
         
