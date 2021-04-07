@@ -22,9 +22,11 @@ private:
     int32_t turn_time;          // total time since 'launch' (until terminated)
     int32_t wait_time;          // total time spent in ready queue
     int32_t cpu_time;           // total time spent running on a CPU core
+    int32_t cpu_time2;
     int32_t remain_time;        // CPU time remaining until terminated
     uint64_t launch_time;       // actual time in ms (since epoch) that process was 'launched'
     int burstIdx;               //current burst
+    uint64_t previousUpdateTime;// previous update time
     // you are welcome to add other private data fields here if you so choose
 
 public:
@@ -49,7 +51,7 @@ public:
     void interrupt();
     void interruptHandled();
 
-    void updateProcess(uint64_t current_time);
+    void updateProcess(uint64_t current_time, uint64_t startTime);
     void updateBurstTime(int burst_idx, uint32_t new_time);
 
     uint32_t getBurstTime(int burst_idx);

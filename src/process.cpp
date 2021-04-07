@@ -24,12 +24,14 @@ Process::Process(ProcessDetails details, uint64_t current_time)
     turn_time = 0;
     wait_time = 0;
     cpu_time = 0;
+    cpu_time2 = 0;
     remain_time = 0;
     for (i = 0; i < num_bursts; i+=2)
     {
         remain_time += burst_times[i];
     }
     burstIdx = 0;
+    previousUpdateTime = current_time;
 }
 
 Process::~Process()
@@ -84,7 +86,7 @@ double Process::getWaitTime() const
 
 double Process::getCpuTime() const
 {
-    return (double)cpu_time / 1000.0;
+    return (double)cpu_time2 / 1000.0;
 }
 
 double Process::getRemainingTime() const
@@ -121,10 +123,30 @@ void Process::interruptHandled()
     is_interrupted = false;
 }
 
-void Process::updateProcess(uint64_t current_time)
+void Process::updateProcess(uint64_t current_time, uint64_t startTime)
 {
     // use `current_time` to update turnaround time, wait time, burst times, 
     // cpu time, and remaining time
+    if(getState() != State::Terminated) {
+        //startTime = start of program, start_time = start of process
+        turn_time = (current_time - startTime - start_time);
+    }
+    
+    if(getState() == State::Ready) {
+        wait_time += current_time - previousUpdateTime;
+    }
+    if(getState() == State::Running) {
+        
+        cpu_time2 = cpu_time2 + (current_time - previousUpdateTime);
+        remain_time = remain_time - (current_time - previousUpdateTime);
+        
+    }
+    if(getState() == State::Terminated) {
+        remain_time = 0;
+    }
+
+
+    previousUpdateTime = current_time;
 }
 
 void Process::updateBurstTime(int burst_idx, uint32_t new_time)
@@ -171,5 +193,8 @@ bool SjfComparator::operator ()(const Process *p1, const Process *p2)
 bool PpComparator::operator ()(const Process *p1, const Process *p2)
 {
     // your code here!
+    if(p1->getPriority() < p2->getPriority()) {
+        return true;
+    }
     return false; // change this!
 }
