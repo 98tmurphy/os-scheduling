@@ -367,7 +367,7 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
                 break;
             }
             shared_data->mutex.lock();
-            if(currentTime() - thisProcess->getBurstStartTime() >= shared_data->time_slice && shared_data->algorithm == RR && thisProcess->getRemainingTime() > 0) {
+            if(currentTime() - thisProcess->getBurstStartTime() >= shared_data->time_slice && shared_data->algorithm == RR) {
                 //std::cout << "hello\n" <<std::endl;
                 thisProcess->interrupt();
                 shared_data->mutex.unlock();
@@ -383,7 +383,12 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
         //     - *Ready queue if interrupted (be sure to modify the CPU burst time to now reflect the remaining time)
         
 
-        if(thisProcess->isInterrupted()) {
+        if(currentTime() - thisProcess->getBurstStartTime() >= thisProcess->getBurstTime(thisProcess->getBurstIdx()) && thisProcess->getBurstIdx() == thisProcess->getNumBursts() - 1) {
+            thisProcess->setState(Process::State::Terminated, currentTime());
+            shared_data->mutex.lock();
+            shared_data->turnTimes.push_back(thisProcess->getTurnaroundTime());
+            shared_data->mutex.unlock();
+        } else if(thisProcess->isInterrupted()) {
             thisProcess->interruptHandled();
             thisProcess->setState(Process::State::Ready, currentTime());
             thisProcess->updateBurstTime(thisProcess->getBurstIdx(), thisProcess->getBurstTime(thisProcess->getBurstIdx()) - (currentTime() - thisProcess->getBurstStartTime()));
@@ -396,11 +401,6 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
             }
             
             shared_data->mutex.unlock();       
-        } else if(currentTime() - thisProcess->getBurstStartTime() >= thisProcess->getBurstTime(thisProcess->getBurstIdx()) && thisProcess->getBurstIdx() == thisProcess->getNumBursts() - 1) {
-            thisProcess->setState(Process::State::Terminated, currentTime());
-            shared_data->mutex.lock();
-            shared_data->turnTimes.push_back(thisProcess->getTurnaroundTime());
-            shared_data->mutex.unlock();
         } else if(currentTime() - thisProcess->getBurstStartTime() >= thisProcess->getBurstTime(thisProcess->getBurstIdx())) {
             //if cpu burst finished
             //std::cout << "TEST";
