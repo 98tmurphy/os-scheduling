@@ -177,7 +177,9 @@ int main(int argc, char **argv)
         bool toBreak = false;
 
         //breaks out of loops when finding a higher priority to save runtime
-        for(int i = 0; i < processes.size(); i++) {
+        shared_data->mutex.lock();
+        if(shared_data->algorithm == PP) {
+            for(int i = 0; i < processes.size(); i++) {
             for(int j = 0; j < processes.size(); j++) {
                 //if process j is ready and has higher priority than process i, and process i is running, interrupt process i
                 if(processes.at(j)->getState() == Process::State::Ready && processes.at(i)->getState() == Process::State::Running) {
@@ -193,6 +195,9 @@ int main(int argc, char **argv)
                 break;
             }
         }
+        }
+        shared_data->mutex.unlock();
+        
     }
     
     //std::cout << "TEST";
@@ -240,7 +245,7 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
             shared_data->ready_queue.pop_front();
         } else {
             shared_data->mutex.unlock();
-            break;
+            continue;
         }
         uint32_t context = shared_data->context_switch;
         shared_data->mutex.unlock();
@@ -266,6 +271,11 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
             //time is elapsing
 
             if(thisProcess->isInterrupted()) {
+                break;
+            }
+            if(currentTime() - thisProcess->getBurstStartTime() >= shared_data->time_slice && shared_data->algorithm == RR) {
+                thisProcess->interrupt();
+                std::cout << "kill me" <<std::endl;
                 break;
             }
         }
