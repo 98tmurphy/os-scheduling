@@ -278,9 +278,7 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
                 //std::cout << "kill me" <<std::endl;
                 break;
             }
-            if(currentTime() == 0) {
-                
-            }
+            
         }
         //std::cout << "test";
         //  - Place the process back in the appropriate queue
