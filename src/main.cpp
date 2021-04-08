@@ -20,6 +20,7 @@ typedef struct SchedulerData {
     uint32_t time_slice;
     std::list<Process*> ready_queue;
     bool all_terminated;
+    std::vector<double> turnTimes;
 } SchedulerData;
 
 void coreRunProcesses(uint8_t core_id, SchedulerData *data);
@@ -28,6 +29,7 @@ void clearOutput(int num_lines);
 uint64_t currentTime();
 std::string processStateToString(Process::State state);
 uint64_t start = currentTime();
+
 
 int main(int argc, char **argv)
 {
@@ -69,6 +71,8 @@ int main(int argc, char **argv)
         
     }
 
+    
+
     //std::cout << "num proc " << shared_data->ready_queue.size() << "\n";
     // Free configuration data from memory
     deleteConfig(config);
@@ -95,9 +99,9 @@ int main(int argc, char **argv)
     SjfComparator SJFoperate;
     PpComparator PPoperate;
 
-    if(shared_data->algorithm = SJF) {
+    if(shared_data->algorithm == SJF) {
         shared_data->ready_queue.sort(SJFoperate);
-    } else if(shared_data->algorithm = PP) {
+    } else if(shared_data->algorithm == PP) {
         shared_data->ready_queue.sort(PPoperate);
     }
     
@@ -122,8 +126,38 @@ int main(int argc, char **argv)
         //   - Get current time
         uint64_t current_time = currentTime();
 
-        //   - *Check if any processes need to move from NotStarted to Ready (based on elapsed time), and if so put that process in the ready queue
+
         for(int i = 0; i < processes.size(); i++) {
+            if(processes.at(i)->getState() == Process::State::IO) {
+                //usleep(1000 * processes.at(i)->getBurstTime(processes.at(i)->getBurstIdx()));
+                if(/*io burst time elapsed*/ currentTime() - processes.at(i)->getIOStartTime() >= processes.at(i)->getBurstTime(processes.at(i)->getBurstIdx())) {
+                    processes.at(i)->setState(Process::State::Ready, currentTime());
+                    processes.at(i)->updateBurstIdx();
+                    
+                    //Here will be the code for where to put it in the ready queue 
+                    
+                    shared_data->mutex.lock();
+                    if(shared_data->algorithm == FCFS) {
+                        shared_data->ready_queue.push_front(processes.at(i));
+                    } else {
+                        shared_data->ready_queue.push_back(processes.at(i));
+                    }
+                    
+                    if(shared_data->algorithm == SJF) {
+                        //std::cout << "Hello\n";
+                        shared_data->ready_queue.sort(SJFoperate);
+                    } else if (shared_data->algorithm == PP) {
+                        
+                        shared_data->ready_queue.sort(PPoperate);
+                    }
+                    
+                    shared_data->mutex.unlock();
+                    
+                    //std::cout << thisProcess->getBurstIdx();
+                }
+                
+            }
+            //   - *Check if any processes need to move from NotStarted to Ready (based on elapsed time), and if so put that process in the ready queue
             //std::cout << current_time - start << "\n";
             //std::cout << processes.at(i)->getStartTime() << "\n";
             if(processes.at(i)->getState() == Process::State::NotStarted && processes.at(i)->getStartTime() <= current_time - start) {
@@ -139,6 +173,10 @@ int main(int argc, char **argv)
                 }
             }
         }
+
+
+
+        
 
         //   - *Check if any processes have finished their I/O burst, and if so put that process back in the ready queue
 
@@ -222,6 +260,60 @@ int main(int argc, char **argv)
     clearOutput(num_lines);
     num_lines = printProcessOutput(processes, shared_data->mutex);
 
+    double cpuTimeSum;
+    double turnTimeSum;
+    double cpuUtilizationPercent;
+    double turnTimeAvg;
+    //double turnTimes[processes.size()];
+    double throughputFirst;
+    double throughputLast;
+    double throughputTotal;
+    double waitTimeAvg;
+
+    for(int i = 0; i < processes.size(); i++) {
+        cpuTimeSum += processes.at(i)->getCpuTime();
+        turnTimeSum += processes.at(i)->getTurnaroundTime();
+
+        //turnTimes[i] = processes.at(i)->getTurnaroundTime();
+        
+    }
+
+    //std::sort(turnTimes, turnTimes + processes.size());
+
+    for(int i = 0; i < processes.size() / 2; i++) {
+        throughputFirst += shared_data->turnTimes.at(i);
+    }
+    throughputFirst = (processes.size() / 2) / throughputFirst;
+
+    for(int i = processes.size() - (processes.size() / 2); i < processes.size(); i++) {
+        throughputLast += shared_data->turnTimes.at(i);
+    }
+    throughputLast = (processes.size() - (processes.size() / 2)) / throughputLast;
+
+    for(int i = 0; i < processes.size(); i++) {
+        throughputTotal += shared_data->turnTimes.at(i);
+    }
+    throughputTotal = processes.size() / throughputTotal;
+    
+    cpuUtilizationPercent = cpuTimeSum / turnTimeSum * 100.0;
+    turnTimeAvg = turnTimeSum / processes.size();
+
+    for(int i = 0; i < processes.size(); i++) {
+        waitTimeAvg += processes.at(i)->getWaitTime();
+    }
+    waitTimeAvg = waitTimeAvg / processes.size();
+
+
+    //printf("Sum of CPU time: %.1f\n", cpuTimeSum);
+    //printf("Sum of turnaround time: %.1f\n", turnTimeSum);
+    printf("CPU Utilization: %.2f%%\n", cpuUtilizationPercent);
+
+    printf("Average turnaround time: %.1f\n", turnTimeAvg);
+    printf("Average throughput for first 50%%: %f processes per second\n", throughputFirst);
+    printf("Average throughput for last 50%%: %f processes per second\n", throughputLast);
+    printf("Average throughput: %f processes per second\n", throughputTotal);
+    printf("Average wait time: %.1f\n", waitTimeAvg);
+
     // Clean up before quitting program
     processes.clear();
 
@@ -269,15 +361,19 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
         
         while(currentTime() - thisProcess->getBurstStartTime() < (uint64_t)thisProcess->getBurstTime(thisProcess->getBurstIdx())) {
             //time is elapsing
+            //std::cout << shared_data->algorithm <<std::endl;
 
             if(thisProcess->isInterrupted()) {
                 break;
             }
-            if(currentTime() - thisProcess->getBurstStartTime() >= shared_data->time_slice && shared_data->algorithm == RR) {
+            shared_data->mutex.lock();
+            if(currentTime() - thisProcess->getBurstStartTime() >= shared_data->time_slice && shared_data->algorithm == RR && thisProcess->getRemainingTime() > 0) {
+                //std::cout << "hello\n" <<std::endl;
                 thisProcess->interrupt();
-                //std::cout << "kill me" <<std::endl;
+                shared_data->mutex.unlock();
                 break;
             }
+            shared_data->mutex.unlock();
             
         }
         //std::cout << "test";
@@ -302,28 +398,17 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
             shared_data->mutex.unlock();       
         } else if(currentTime() - thisProcess->getBurstStartTime() >= thisProcess->getBurstTime(thisProcess->getBurstIdx()) && thisProcess->getBurstIdx() == thisProcess->getNumBursts() - 1) {
             thisProcess->setState(Process::State::Terminated, currentTime());
+            shared_data->mutex.lock();
+            shared_data->turnTimes.push_back(thisProcess->getTurnaroundTime());
+            shared_data->mutex.unlock();
         } else if(currentTime() - thisProcess->getBurstStartTime() >= thisProcess->getBurstTime(thisProcess->getBurstIdx())) {
             //if cpu burst finished
             //std::cout << "TEST";
             thisProcess->setState(Process::State::IO, currentTime());
             thisProcess->updateBurstIdx();
-            usleep(thisProcess->getBurstTime(thisProcess->getBurstIdx()));
-            thisProcess->setState(Process::State::Ready, currentTime());
-            thisProcess->updateBurstIdx();
+            thisProcess->setIOStartTime(currentTime());
+
             
-            //Here will be the code for where to put it in the ready queue 
-            
-            shared_data->mutex.lock();
-            shared_data->ready_queue.push_back(thisProcess);
-            if(shared_data->algorithm == SJF) {
-                shared_data->ready_queue.sort(SJFoperate);
-            } else if (shared_data->algorithm == PP) {
-                shared_data->ready_queue.sort(PPoperate);
-            }
-            
-            shared_data->mutex.unlock();
-            
-            //std::cout << thisProcess->getBurstIdx();
         } 
         
         thisProcess->setCpuCore(-1);

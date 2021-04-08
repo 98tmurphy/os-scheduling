@@ -32,6 +32,7 @@ Process::Process(ProcessDetails details, uint64_t current_time)
     }
     burstIdx = 0;
     previousUpdateTime = current_time;
+    IOStartTime = 0;
 }
 
 Process::~Process()
@@ -152,6 +153,14 @@ void Process::updateProcess(uint64_t current_time, uint64_t startTime)
 void Process::updateBurstTime(int burst_idx, uint32_t new_time)
 {
     burst_times[burst_idx] = new_time;
+}
+
+void Process::setIOStartTime(uint64_t start_time) {
+    IOStartTime = start_time;
+}
+
+uint64_t Process::getIOStartTime() {
+    return IOStartTime;
 }
 
 uint32_t Process::getBurstTime(int burst_idx)  

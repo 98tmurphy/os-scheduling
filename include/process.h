@@ -27,6 +27,7 @@ private:
     uint64_t launch_time;       // actual time in ms (since epoch) that process was 'launched'
     int burstIdx;               //current burst
     uint64_t previousUpdateTime;// previous update time
+    uint64_t IOStartTime;
     // you are welcome to add other private data fields here if you so choose
 
 public:
@@ -53,6 +54,8 @@ public:
 
     void updateProcess(uint64_t current_time, uint64_t startTime);
     void updateBurstTime(int burst_idx, uint32_t new_time);
+    void setIOStartTime(uint64_t current_time);
+    uint64_t getIOStartTime();
 
     uint32_t getBurstTime(int burst_idx);
     int getBurstIdx();
