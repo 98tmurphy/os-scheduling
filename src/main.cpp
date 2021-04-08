@@ -308,11 +308,11 @@ int main(int argc, char **argv)
     //printf("Sum of turnaround time: %.1f\n", turnTimeSum);
     printf("CPU Utilization: %.2f%%\n", cpuUtilizationPercent);
 
-    printf("Average turnaround time: %.1f\n", turnTimeAvg);
+    printf("Average turnaround time: %.1f seconds\n", turnTimeAvg);
     printf("Average throughput for first 50%%: %f processes per second\n", throughputFirst);
     printf("Average throughput for last 50%%: %f processes per second\n", throughputLast);
     printf("Average throughput: %f processes per second\n", throughputTotal);
-    printf("Average wait time: %.1f\n", waitTimeAvg);
+    printf("Average wait time: %.1f seconds\n", waitTimeAvg);
 
     // Clean up before quitting program
     processes.clear();
