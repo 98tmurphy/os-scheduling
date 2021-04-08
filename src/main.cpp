@@ -269,8 +269,9 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
         
         while(currentTime() - thisProcess->getBurstStartTime() < (uint64_t)thisProcess->getBurstTime(thisProcess->getBurstIdx())) {
             //time is elapsing
-
-            if(thisProcess->isInterrupted()) {
+            if(currentTime() - thisProcess->getBurstStartTime() >= shared_data->time_slice && shared_data->algorithm == RR) {
+                thisProcess->interrupt();
+                std::cout << "kill me" <<std::endl;
                 break;
             }
             if(currentTime() - thisProcess->getBurstStartTime() >= shared_data->time_slice && shared_data->algorithm == RR) {
